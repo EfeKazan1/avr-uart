@@ -4,7 +4,7 @@ ATmega328p için **register seviyesinde** yazılmış, CRC-16 korumalı bir bina
 
 [01-nmea-dogrulama](../01-nmea-dogrulama)'daki kesmeli UART sürücüsü ve [02-nmea-ayristirma](../02-nmea-ayristirma)'daki Timer0 tick'i üzerine kuruludur.
 
-![Kurulum](docs/binarycodeunolar.jpg)
+![Kurulum](docs/binarycodeunolar.jpeg)
 
 ## Neden binary?
 
