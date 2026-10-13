@@ -127,15 +127,8 @@ Test betiği: [`modbus_test.py`](modbus_test.py)
 
 ## Öğrenilenler
 
-
-**`&adres` ile `&registerlar[adres]` aynı şey değil.**
-İlki `adres` değişkeninin RAM'deki yeri. Fonksiyon oradan başlayıp yanındaki değişkenleri okuyordu. 02'deki `gps_detect` hatasıyla aynı tür.
-
 **`memcpy` endianness'i bilmez.**
 AVR `uint16_t`'yi bellekte küçük uç önce tutuyor (`0x0328` → `28 03`). Modbus büyük uç önce istiyor. Register'lar `>> 8` ve `& 0xFF` ile elle ayrıldı.
-
-**Önce fonksiyona bak, sonra baytları yorumla.**
-`tampon[4..5]` 03'te adet, 06'da değer. Kontroller `switch`'ten önce yapılınca `LED = 0` yazma isteği "adet = 0" sanılıp reddediliyordu.
 
 **AVR'de `int` 16 bit.**
 `adres + adet` toplamı `int`'e yükseltilir ve taşabilir. Kontrol `(uint32_t)adres + adet` ile yapılıyor.
