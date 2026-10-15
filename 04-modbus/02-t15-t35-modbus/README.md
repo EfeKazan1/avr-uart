@@ -208,7 +208,7 @@ Gecikmenin neredeyse tamamı, Modbus'ın zorunlu tuttuğu t3.5 sessizliğinden g
 
 Bir kesme main'i **herhangi bir yerde**, iki satırın arasında bile durdurabiliyor. Kesme debug palsinin H ve L satırları arasına denk gelince pin ISR bitene kadar yüksekte kalıyor, pals ~125 ns yerine ~4,5 µs sürüyor. Uzun pals aslında ISR'ın süresini ölçüyor.
 
-![ISR etkisi](docs/isr_kesme_etkisi.png)
+![ISR etkisi](docs/isr_isleyi_uzatma.png)
 
 Cevap gönderilirken ana döngü durmuyor. `send_data` baytları halka tampona koyup hemen dönüyor, baytları hatta UDRE kesmesi tek tek gönderiyor. Bu kesme her baytın başında bir kez çalışıyor ve o turu birkaç µs uzatıyor.
 
@@ -231,9 +231,9 @@ Testte paket ikiye bölünüyor: önce 3 bayt, araya bir boşluk, sonra kalan 5 
 
 <table>
 <tr>
-<td><img src="docs/t15_kabul_10ms.png" alt="10 ms kabul"></td>
-<td><img src="docs/t15_ihlal.png" alt="t1.5 ihlali"></td>
-<td><img src="docs/t35_iki_parca.png" alt="t3.5 iki parça"></td>
+<td><img src="docs/gecerli.png" alt="10 ms kabul"></td>
+<td><img src="docs/t15.png" alt="t1.5 ihlali"></td>
+<td><img src="docs/t35.png" alt="t3.5 iki parça"></td>
 </tr>
 <tr>
 <td align="center">10 ms: sınırın altında, cevap geldi</td>
