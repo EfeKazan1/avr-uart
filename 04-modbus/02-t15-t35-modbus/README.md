@@ -290,19 +290,19 @@ UBRR makrolarında `baud` parantez içinde değildi. `UBRR(9600 + 9600)` gibi bi
 </details>
 
 ---
-
 ## 8. Bilinen sınırlamalar
 
 | Bu sürüm | Gerçek bir ürün |
 |---|---|
-| ✏️ | ✏️ |
-| ✏️ | ✏️ |
-| ✏️ | ✏️ |
-
-<!-- ✏️ Fikirler: slave adresi kodda sabit (EEPROM yok) / baud kodda sabit /
-     TTL UART, tek slave (RS-485 yok) / t1.5 alt sınırı Mac'le 1200 baud'da test edildi,
-     115200'deki tam sınır Uno ile ölçülecek / 8 baytlık tampon -->
-
+| Slave adresi (`0xEF`) kodda sabit | Register'dan değiştirilebilir, EEPROM'da saklanır |
+| Baud derleme zamanında `#define` ile seçiliyor | Baud da register'dan ayarlanır, açılışta EEPROM'dan okunur |
+| TTL UART, tek slave | RS-485, aynı hatta 32+ cihaz, DE/RE yön kontrolü |
+| Fonksiyon 03 ve 06 | Genelde 03, 04, 06, 16 |
+| 8 baytlık tampon: fonksiyon 16 sessizce atılıyor | Tam tampon (256 bayt), desteklenmeyen fonksiyona 01 hatası |
+| Broadcast (adres 0) yok sayılıyor | 06 uygulanır, cevap verilmez |
+| t1.5 sınırı 1200 baud'da Mac ile test edildi | 115200'deki tam sınır µs hassasiyetli bir master ile ölçülür (Uno ile yapılacak) |
+| Zaman damgası baytın hatta geldiği an değil, main'in onu okuduğu an | Damga RX kesmesinde alınır, döngü gecikmesi (~10 µs) ölçüme girmez |
+| 115200'de baud hatası +%2,1 | Baud'a uygun kristal (örn. 14,7456 MHz) ile %0 hata |
 ---
 
 ## Sonraki adımlar
