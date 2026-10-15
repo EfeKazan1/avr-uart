@@ -35,9 +35,9 @@ UBRR bir tam sayı olmak zorunda. 115200 için normal modda sonuç 7,68 çıkıy
 
 | | Normal (÷16) | U2X (÷8) |
 |---|---|---|
-| UBRR | ✏️ | ✏️ |
-| Gerçek baud | ✏️ | ✏️ |
-| Hata | ✏️ | ✏️ |
+| UBRR | 8 (7,68 → yuvarlandı) | 16 |
+| Gerçek baud | 111 111 | 117 647 |
+| Hata | −%3,5 | +%2,1 |
 
 Yuvarlama makroda yapılıyor: bölmeden önce bölenin yarısı ekleniyor. U2X makrosunda bölen `8·baud` olduğu için eklenecek yarı `4·baud`. İlk sürümde yanlışlıkla `8·baud` yazılmıştı ve UBRR 16 yerine 17 çıkıyordu.
 
@@ -56,8 +56,8 @@ Modbus RTU'da paketin başını ya da sonunu gösteren özel bir bayt yok. Paket
 
 | | Ne ölçer? | Aşılırsa |
 |---|---|---|
-| **t1.5** | ✏️ | ✏️ |
-| **t3.5** | ✏️ | ✏️ |
+| **t1.5** | Paketin içindeki iki bayt arası en uzun sessizlik | Paket bozuk sayılır, t3.5'ten sonra atılır |
+| **t3.5** | Paketin bittiğini gösteren sessizlik | Paket kapanır, uzunluk / adres / CRC kontrolüne gider |
 
 - **t1.5:** Paketin **içindeki** iki bayt arasında izin verilen en uzun sessizlik. Aşılırsa paket bozuk sayılır ve atılır.
 - **t3.5:** Paketin **bittiğini** gösteren sessizlik. Dolunca paket uzunluk, adres ve CRC kontrollerinden geçer. Ya işlenir ya da atılır.
@@ -77,9 +77,9 @@ baud > 19200:   t1.5 = 750 µs (sabit)      t3.5 = 1750 µs (sabit)
 
 | Baud | 1 karakter | t1.5 | t3.5 |
 |---|---|---|---|
-| 1200 | ✏️ | ✏️ | ✏️ |
-| 9600 | ✏️ | ✏️ | ✏️ |
-| 115200 | — | ✏️ | ✏️ |
+| 1200 | 9 166 µs | 13 750 µs | 32 083 µs |
+| 9600 | 1 146 µs | ~1 717 µs | ~4 010 µs |
+| 115200 | — | 750 µs (sabit) | 1 750 µs (sabit) |
 
 Hesap tam sayılarla yapılıyor. Çarpma taşmasın diye `UL` ekleniyor, 3,5 için de `× 35 / 10` yazılıyor (önce çarp, sonra böl).
 
@@ -106,9 +106,9 @@ main.c   ── ikisini birbirine bağlar, aralarında sayıları (bayt, zaman, 
 
 | Dosya | Ne biliyor? | Ne bilmiyor? |
 |---|---|---|
-| `uart.c` | ✏️ | ✏️ |
-| `modbus.c` | ✏️ | ✏️ |
-| `main.c` | ✏️ | ✏️ |
+| `uart.c` | Register'lar, UBRR, kesmeler, halka tamponlar | Modbus'ı |
+| `modbus.c` | Baud ve zaman (sayı olarak), çerçeve, CRC, register tablosu | UART'ı, timer'ı |
+| `main.c` | İki modülün `Usart` / `Modbus` kapılarını | Modüllerin içini |
 
 ### Struct ile tek kapı
 
@@ -190,9 +190,9 @@ son bayt ──(A)── SEND MESSAGE ──(B)── ilk TX biti
 
 | İstek | A | B |
 |---|---|---|
-| `06` LED yaz | ✏️ | ✏️ |
-| `03` 1 register | ✏️ | ✏️ |
-| `03` 5 register | ✏️ | ✏️ |
+| `06` LED yaz | 1,79 ms | ~15 µs |
+| `03` 1 register | 1,79 ms | ~56 µs |
+| `03` 5 register | 1,79 ms | ~100 µs |
 
 **A sabit.** İçinde t3.5 sessizliği (1750 µs) ve isteğin CRC kontrolü var. Bütün istekler 8 bayt, CRC her seferinde 6 bayt üzerinden hesaplanıyor. Bu yüzden süre hep aynı. İsteğin içeriğine ilk kez switch'te bakılıyor, o da A'dan sonra geliyor.
 
@@ -204,11 +204,11 @@ Gecikmenin neredeyse tamamı, Modbus'ın zorunlu tuttuğu t3.5 sessizliğinden g
 
 | Ölçüm | Değer |
 |---|---|
-| Ana döngü turu (boşta) | ✏️ |
-| Ana döngü turu (bayt işlenirken) | ✏️ |
-| Timer0 ISR aralığı | ✏️ |
-| ISR süresi | ✏️ |
-| UDRE kesmesinin döngüye etkisi | ✏️ |
+| Ana döngü turu (boşta) | ~9–10 µs |
+| Ana döngü turu (bayt işlenirken) | ~16,4 µs |
+| Timer0 ISR aralığı | 1,000 ms |
+| ISR süresi | ~4,5 µs |
+| UDRE kesmesinin döngüye etkisi | tur ~10 → ~13 µs (her baytın başında) |
 
 ![Timer ISR](docs/timer_isr_1ms.png)
 
@@ -230,10 +230,10 @@ Testte paket ikiye bölünüyor: önce 3 bayt, araya bir boşluk, sonra kalan 5 
 
 | Boşluk (`sleep`) | Gerçek boşluk | Bölge | t1.5 pini | Cevap |
 |---|---|---|---|---|
-| 3 ms | ✏️ | ✏️ | ✏️ | ✏️ |
-| 10 ms | ✏️ | ✏️ | ✏️ | ✏️ |
-| 20 ms | ✏️ | ✏️ | ✏️ | ✏️ |
-| 50 ms | ✏️ | ✏️ | ✏️ | ✏️ |
+| 3 ms | ✏️ | < t1.5 | — | ✅ geldi |
+| 10 ms | ✏️ | < t1.5 | — | ✅ geldi |
+| 20 ms | ✏️ | t1.5 – t3.5 | pals | ❌ yok |
+| 50 ms | ✏️ | > t3.5 | — | ❌ yok |
 
 <table>
 <tr>
@@ -256,8 +256,8 @@ Bu durum için ayrı bir kural yok. t3.5 dolunca `isle` paketi kapatıyor ve her
 
 | Parça | Baytlar | Takıldığı kontrol |
 |---|---|---|
-| 1. | ✏️ | ✏️ |
-| 2. | ✏️ | ✏️ |
+| 1. | `EF 06 00` | Uzunluk 3 < 4 |
+| 2. | `01 00 01 0E 84` | Adres 0x01 ≠ 0xEF |
 
 İlk parça 4 bayttan kısa olduğu için eleniyor, ikincisi adres tutmadığı için. Adres tesadüfen tutsaydı bile CRC yakalardı. Kontroller katman katman çalışıyor: biri kaçırırsa bir sonraki yakalıyor.
 
