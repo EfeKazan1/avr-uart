@@ -42,8 +42,9 @@ UBRR bir tam sayı olmak zorunda. 115200 için normal modda sonuç 7,68 çıkıy
 Yuvarlama makroda yapılıyor: bölmeden önce bölenin yarısı ekleniyor. U2X makrosunda bölen `8·baud` olduğu için eklenecek yarı `4·baud`. İlk sürümde yanlışlıkla `8·baud` yazılmıştı ve UBRR 16 yerine 17 çıkıyordu.
 
 ```c
-#define UBRR_NORMAL(baud)  (((F_CPU + 8UL * (baud)) / (16UL * (baud))) - 1)
-#define UBRR_U2X(baud)     (((F_CPU + 4UL * (baud)) / ( 8UL * (baud))) - 1)
+#define UBRR_DEGER_HESAPLAMA(baud) ((((F_CPU + 8UL * (baud))/(16UL * (baud))) - 1))
+
+#define UBRR_DEGER_U2X_HESAPLAMA(baud) ((((F_CPU + 4UL * (baud))/(8UL * (baud))) - 1))
 ```
 
 **Ölçülen:** Analizörde baytlar arası süre **85,25 µs** çıktı (10 bit). Bu ~117 300 baud demek, hesaplanan değerle uyumlu.
@@ -158,21 +159,11 @@ Başta istekleri RX hattından izlemek istedim, ama RX analizörde görünmedi. 
 
 | Pin | Kanal | Ne zaman pals? |
 |---|---|---|
-| ✏️ | READ BYTE | `modbus_bayt_al` her bayt aldığında |
-| ✏️ | ISLE | `modbus_isle`'ye her girişte (ana döngünün nabzı) |
-| ✏️ | SEND MESSAGE | Adres ve CRC kontrolü geçildi, switch'e giriliyor |
-| ✏️ | ISR_TIMER | Timer0 karşılaştırma kesmesi (1 ms) |
-| ✏️ | t1.5 | t1.5 aşıldı, paket bozuk sayıldı |
-
-Debug palsleri tek bir makroda toplandı. `DEBUG_PINLERI` tanımlı değilse makro boşa çıkıyor ve kodda hiçbir iz kalmıyor:
-
-```c
-#ifdef DEBUG_PINLERI
-  #define DBG_PALS(pin)  do { PORTB |= (1 << (pin)); PORTB &= ~(1 << (pin)); } while (0)
-#else
-  #define DBG_PALS(pin)  do { } while (0)
-#endif
-```
+| B0 | READ BYTE | `modbus_bayt_al` her bayt aldığında |
+| B1 | ISLE | `modbus_isle`'ye her girişte (ana döngünün nabzı) |
+| B2 | SEND MESSAGE | Adres ve CRC kontrolü geçildi, switch'e giriliyor |
+| B3 | ISR_TIMER | Timer0 karşılaştırma kesmesi (1 ms) |
+| B4 | t1.5 | t1.5 aşıldı, paket bozuk sayıldı |
 
 Bir pals ~125 ns sürüyor. Analizörün örnekleme hızı düşükse palsi kaçırabiliyor: ilk denemede 8 bayttan 7'si görünmüştü.
 
@@ -182,7 +173,7 @@ Bir pals ~125 ns sürüyor. Analizörün örnekleme hızı düşükse palsi kaç
 
 ### Son bayttan cevaba
 
-![Sessizlik 115200](docs/sessizlik_115200.png)
+![Sessizlik 115200](docs/tum_icerik.png)
 
 ```
 son bayt ──(A)── SEND MESSAGE ──(B)── ilk TX biti
@@ -198,6 +189,9 @@ son bayt ──(A)── SEND MESSAGE ──(B)── ilk TX biti
 
 **B değişiyor.** İçinde cevabın hazırlanması ve cevabın CRC'si var. Okunan register sayısı arttıkça cevap uzuyor, CRC de daha fazla bayt üzerinden hesaplanıyor. `06`'nın cevabı isteğin birebir kopyası olduğu için en hızlısı o.
 
+![KISA CEVAP ETKISI](docs/kisacevap.png)
+![UZUN CEVAP ETKISI ](docs/enuzuncevap.png)
+
 Gecikmenin neredeyse tamamı, Modbus'ın zorunlu tuttuğu t3.5 sessizliğinden geliyor. Kod en kötü durumda ~100 µs harcıyor, yani toplamın ~%5'i. Burada CRC'yi hızlandırmanın (tablo yöntemi) anlamı yok. **Önce ölç, sonra optimize et.**
 
 ### Ana döngü ve kesmeler
@@ -210,7 +204,7 @@ Gecikmenin neredeyse tamamı, Modbus'ın zorunlu tuttuğu t3.5 sessizliğinden g
 | ISR süresi | ~4,5 µs |
 | UDRE kesmesinin döngüye etkisi | tur ~10 → ~13 µs (her baytın başında) |
 
-![Timer ISR](docs/timer_isr_1ms.png)
+![Timer ISR](docs/isr_1ms.png)
 
 Bir kesme main'i **herhangi bir yerde**, iki satırın arasında bile durdurabiliyor. Kesme debug palsinin H ve L satırları arasına denk gelince pin ISR bitene kadar yüksekte kalıyor, pals ~125 ns yerine ~4,5 µs sürüyor. Uzun pals aslında ISR'ın süresini ölçüyor.
 
@@ -273,6 +267,9 @@ Bu durum için ayrı bir kural yok. t3.5 dolunca `isle` paketi kapatıyor ve her
 `son_byte_us`, bayt **tamamen geldiğinde** kaydediliyor. İki kayıt arasındaki fark, aradaki sessizliğe ek olarak bir sonraki baytın kendi süresini de içeriyor. 115200'de bu sadece 87 µs, ama 1200 baud'da 8,3 ms. Sonuç: 10 ms'lik boşluklu paket, standarda göre geçerli olduğu hâlde reddediliyordu.
 → Eşiğe bir bayt süresi eklendi. 10 ms'lik paket artık kabul ediliyor.
 
+![ISR etkisi](docs/t15_1200_baud.png)
+
+
 **İşaretsiz sayıda çıkarma taşması.**
 Düzeltmenin ilk hâli `(simdi - son_byte_us) - bayt_suresi > t15` idi. Normal, boşluksuz baytlarda fark bayt süresinden küçük kalınca sonuç negatif olacaktı, ama `uint32_t`'de negatif sayı yok: sonuç ~4,29 milyar oldu ve her bayt alarm verdi.
 → İşaretsiz sayılarda çıkarmayı karşı tarafa toplama olarak taşı: `simdi - son_byte_us > t15 + bayt_suresi`.
@@ -280,23 +277,14 @@ Düzeltmenin ilk hâli `(simdi - son_byte_us) - bayt_suresi > t15` idi. Normal, 
 **U2X makrosunda yuvarlama.**
 U2X makrosunda bölenin yarısı olarak `4·baud` yerine `8·baud` eklenmişti. UBRR 16 yerine 17 çıkıyordu.
 
-**Yanlış fonksiyon pointer'ı.**
-`Usart` struct'ında string gönderme alanına `rb_oku` bağlanmıştı. İki fonksiyonun tipi tamamen farklıydı ve derleyici *incompatible pointer type* uyarısı verdi.
-→ Fonksiyon pointer'larında bu uyarı hemen her zaman gerçek bir hatadır.
-
 **Makro parametresi parantezsiz.**
 UBRR makrolarında `baud` parantez içinde değildi. `UBRR(9600 + 9600)` gibi bir çağrı `8UL * 9600 + 9600` diye açılır ve sessizce yanlış bir baud verirdi.
 → Makroda her parametre ve bütün ifade parantez içinde olmalı.
 
-**Tüm kanallar aynı anda yükseldi: reset.**
-Python portu açtığında analizörde bütün debug pinleri aynı anda ~1,5 s yüksekte kaldı. Port açılınca DTR hattı Arduino'yu resetliyor. Reset bütün pinleri girişe çeviriyor, ardından bootloader bekliyor.
-→ Bütün kanallar aynı anda tuhaflaşıyorsa koda değil, sisteme bak: reset, besleme, GND.
 
 <details>
 <summary>Diğer notlar</summary>
 
-- **Port adı değişti:** Kart farklı bir USB portuna takılınca `wchusbserial130` → `wchusbserial1130` oldu. Çalıştırmadan önce `ls /dev/cu.*` ile kontrol et.
-- **Aynı porta iki program:** *"device reports readiness to read but returned no data"* hatası, portu başka bir programın da (seri monitör, `screen`) açık tuttuğu anlamına geliyordu. `lsof | grep wchusbserial` ile bulundu.
 - **Bayt sırası (LSB önce):** Analizörde 0x27'nin bitleri `1110 0100` diye görünüyor. UART en düşük biti önce gönderiyor, zaman da soldan sağa akıyor.
 
 </details>
