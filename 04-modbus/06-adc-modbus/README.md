@@ -144,7 +144,7 @@ için 0,1 °C adımlarla değişiyor.*
 *Timer callback'i (D6) → ADC ISR serisi (D2) → çok sonra gelen Modbus isteği ve cevabı. Ölçüm, Modbus
 akışından tamamen bağımsız arka planda yapılıyor.*
 
-![128 ms periyot ve 16'lık seri](docs/Ekran Resmi 2026-10-23 09.29.58.png)
+![128 ms periyot ve 16'lık seri](docs/128ms.png)
 
 ![Dönüşüm süresi](docs/kesmeli_104us.png)
 
